@@ -123,6 +123,8 @@ model ParkingSession {
   exitById        String?   @db.VarChar(30)
   notes           String?   @db.VarChar(300)
   cancelReason    String?   @db.VarChar(300)
+  /// Daily token number printed on the parking slip (resets per lot per day).
+  slipNumber      Int?
   /// "businessId:vehicleNumber" while ACTIVE, NULL after — the unique index
   /// makes a duplicate active session impossible at the database level.
   activeKey       String?   @unique @db.VarChar(64)
@@ -213,6 +215,16 @@ model StaffShift {
 
   @@index([businessId, startTime])
   @@index([lotId, startTime])
+}
+
+/// Race-safe per-lot, per-day sequence for parking slip token numbers.
+model DailyCounter {
+  id      String @id @default(cuid())
+  lotId   String @db.VarChar(30)
+  dateKey String @db.VarChar(10)
+  value   Int    @default(0)
+
+  @@unique([lotId, dateKey])
 }
 
 model ActivityLog {

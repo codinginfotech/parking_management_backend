@@ -9,6 +9,7 @@ import {
   lotScopeFilter,
   requireBusiness,
 } from '../../common/utils/lot-access';
+import { localDateKey } from '../../common/utils/dates';
 import {
   formatPlate,
   isValidPlate,
@@ -57,11 +58,38 @@ function serializeSession(
     durationMinutes: session.durationMinutes ?? undefined,
     amount: session.amount ?? undefined,
     coveredByPass: session.coveredByPass,
+    slipNumber: session.slipNumber ?? undefined,
     notes: session.notes ?? undefined,
     cancelReason: session.cancelReason ?? undefined,
     createdAt: session.createdAt,
     ...extras,
   };
+}
+
+/**
+ * Allocates the next daily slip/token number for a lot (resets each IST day).
+ * The unique-keyed counter row makes concurrent entries serialize safely.
+ */
+async function nextSlipNumber(lotId: string): Promise<number> {
+  const dateKey = localDateKey(new Date());
+  try {
+    const counter = await prisma.dailyCounter.upsert({
+      where: { lotId_dateKey: { lotId, dateKey } },
+      create: { lotId, dateKey, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+    return counter.value;
+  } catch (error) {
+    // Two first-entries-of-the-day racing: one create wins, the other retries.
+    if (isUniqueViolation(error)) {
+      const counter = await prisma.dailyCounter.update({
+        where: { lotId_dateKey: { lotId, dateKey } },
+        data: { value: { increment: 1 } },
+      });
+      return counter.value;
+    }
+    throw error;
+  }
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -137,6 +165,8 @@ export async function createEntry(user: AuthUser, input: EntryInput) {
     findActivePassForVehicle(businessId, vehicleNumber, lot.id),
   ]);
 
+  const slipNumber = await nextSlipNumber(lot.id);
+
   let session: ParkingSession;
   try {
     session = await prisma.parkingSession.create({
@@ -152,6 +182,7 @@ export async function createEntry(user: AuthUser, input: EntryInput) {
         passId: pass?.id,
         entryById: user.id,
         notes: input.notes,
+        slipNumber,
         activeKey: activeKeyFor(businessId, vehicleNumber),
       },
     });
