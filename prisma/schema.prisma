@@ -1,5 +1,8 @@
 generator client {
   provider = "prisma-client-js"
+  // "native" covers local dev (Windows); the debian target covers Azure App
+  // Service / Railway Linux containers when node_modules is built in CI.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
