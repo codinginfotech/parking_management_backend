@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  fullName           String   @db.VarChar(80)
+  email              String   @unique @db.VarChar(190)
+  phone              String?  @db.VarChar(15)
+  password           String?  @db.VarChar(100)
+  profileImage       String?  @db.Text
+  authProvider       String   @default("EMAIL") @db.VarChar(10)
+  googleId           String?  @unique @db.VarChar(64)
+  role               String   @default("OWNER") @db.VarChar(10)
+  businessId         String?  @db.VarChar(30)
+  /// string[] of assigned ParkingLot ids (empty = all lots)
+  assignedLots       Json?
+  isEmailVerified    Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  /// string[] of SHA-256 refresh token hashes (one per device)
+  refreshTokenHashes Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  payments Payment[]    @relation("PaymentCollector")
+  shifts   StaffShift[] @relation("ShiftStaff")
+
+  @@index([businessId])
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(120)
+  ownerId   String   @db.VarChar(30)
+  phone     String?  @db.VarChar(15)
+  address   String?  @db.VarChar(300)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model ParkingLot {
+  id             String   @id @default(cuid())
+  businessId     String   @db.VarChar(30)
+  name           String   @db.VarChar(120)
+  address        String?  @db.VarChar(300)
+  /// CapacityEntry[]: [{ vehicleType, spaces }]
+  capacity       Json
+  /// PricingRule[] — see pricing.engine.ts
+  pricing        Json
+  /// { is24Hours, open?, close? }
+  operatingHours Json
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sessions ParkingSession[] @relation("SessionLot")
+  shifts   StaffShift[]     @relation("ShiftLot")
+
+  @@index([businessId])
+}
+
+model ParkingSlot {
+  id              String   @id @default(cuid())
+  businessId      String   @db.VarChar(30)
+  lotId           String   @db.VarChar(30)
+  code            String   @db.VarChar(12)
+  vehicleType     String?  @db.VarChar(15)
+  status          String   @default("AVAILABLE") @db.VarChar(10)
+  activeSessionId String?  @db.VarChar(30)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  activeSession ParkingSession? @relation("SlotActiveSession", fields: [activeSessionId], references: [id])
+
+  @@unique([lotId, code])
+  @@index([lotId, status])
+}
+
+model Vehicle {
+  id          String    @id @default(cuid())
+  businessId  String    @db.VarChar(30)
+  number      String    @db.VarChar(16)
+  type        String    @db.VarChar(15)
+  ownerName   String?   @db.VarChar(80)
+  ownerPhone  String?   @db.VarChar(15)
+  notes       String?   @db.VarChar(300)
+  totalVisits Int       @default(0)
+  lastVisitAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([businessId, number])
+}
+
+model ParkingSession {
+  id              String    @id @default(cuid())
+  businessId      String    @db.VarChar(30)
+  lotId           String    @db.VarChar(30)
+  vehicleId       String    @db.VarChar(30)
+  vehicleNumber   String    @db.VarChar(16)
+  vehicleType     String    @db.VarChar(15)
+  slotId          String?   @db.VarChar(30)
+  slotCode        String?   @db.VarChar(12)
+  status          String    @default("ACTIVE") @db.VarChar(10)
+  entryTime       DateTime  @default(now())
+  exitTime        DateTime?
+  durationMinutes Int?
+  amount          Int?
+  coveredByPass   Boolean   @default(false)
+  passId          String?   @db.VarChar(30)
+  paymentId       String?   @db.VarChar(30)
+  entryById       String    @db.VarChar(30)
+  exitById        String?   @db.VarChar(30)
+  notes           String?   @db.VarChar(300)
+  cancelReason    String?   @db.VarChar(300)
+  /// "businessId:vehicleNumber" while ACTIVE, NULL after — the unique index
+  /// makes a duplicate active session impossible at the database level.
+  activeKey       String?   @unique @db.VarChar(64)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  lot   ParkingLot    @relation("SessionLot", fields: [lotId], references: [id])
+  slots ParkingSlot[] @relation("SlotActiveSession")
+
+  payments Payment[] @relation("PaymentSession")
+
+  @@index([businessId, status, entryTime])
+  @@index([lotId, status, entryTime])
+  @@index([businessId, vehicleNumber, entryTime])
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  businessId     String   @db.VarChar(30)
+  lotId          String   @db.VarChar(30)
+  sessionId      String?  @db.VarChar(30)
+  passId         String?  @db.VarChar(30)
+  amount         Int
+  method         String   @db.VarChar(10)
+  status         String   @default("PAID") @db.VarChar(10)
+  collectedById  String   @db.VarChar(30)
+  shiftId        String?  @db.VarChar(30)
+  transactionRef String?  @db.VarChar(120)
+  receiptNumber  String   @unique @db.VarChar(32)
+  paidAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  collectedBy User            @relation("PaymentCollector", fields: [collectedById], references: [id])
+  session     ParkingSession? @relation("PaymentSession", fields: [sessionId], references: [id])
+
+  @@index([businessId, paidAt])
+  @@index([lotId, paidAt])
+  @@index([collectedById, paidAt])
+}
+
+model MonthlyPass {
+  id            String   @id @default(cuid())
+  businessId    String   @db.VarChar(30)
+  lotId         String?  @db.VarChar(30)
+  vehicleNumber String   @db.VarChar(16)
+  vehicleType   String   @db.VarChar(15)
+  holderName    String   @db.VarChar(80)
+  holderPhone   String?  @db.VarChar(15)
+  amount        Int
+  startDate     DateTime
+  endDate       DateTime
+  status        String   @default("ACTIVE") @db.VarChar(10)
+  /// { renewedAt, months, amount, by }[]
+  renewals      Json?
+  createdById   String   @db.VarChar(30)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([businessId, vehicleNumber, status])
+  @@index([businessId, endDate])
+}
+
+model StaffShift {
+  id              String    @id @default(cuid())
+  businessId      String    @db.VarChar(30)
+  lotId           String    @db.VarChar(30)
+  staffId         String    @db.VarChar(30)
+  status          String    @default("OPEN") @db.VarChar(10)
+  startTime       DateTime  @default(now())
+  endTime         DateTime?
+  cashCollected   Int       @default(0)
+  upiCollected    Int       @default(0)
+  cardCollected   Int       @default(0)
+  otherCollected  Int       @default(0)
+  totalCollected  Int       @default(0)
+  sessionsStarted Int       @default(0)
+  sessionsClosed  Int       @default(0)
+  openingNote     String?   @db.VarChar(300)
+  closingNote     String?   @db.VarChar(300)
+  /// staffId while OPEN, NULL after — one open shift per staff member.
+  activeKey       String?   @unique @db.VarChar(30)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  staff User       @relation("ShiftStaff", fields: [staffId], references: [id])
+  lot   ParkingLot @relation("ShiftLot", fields: [lotId], references: [id])
+
+  @@index([businessId, startTime])
+  @@index([lotId, startTime])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  businessId  String   @db.VarChar(30)
+  lotId       String?  @db.VarChar(30)
+  actorId     String   @db.VarChar(30)
+  actorName   String   @db.VarChar(80)
+  action      String   @db.VarChar(30)
+  description String   @db.VarChar(300)
+  entityType  String?  @db.VarChar(30)
+  entityId    String?  @db.VarChar(30)
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([lotId, createdAt])
+}

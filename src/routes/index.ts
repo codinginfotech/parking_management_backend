@@ -1,0 +1,32 @@
+import { Router } from 'express';
+import { activityRoutes } from '../modules/activity/activity.routes';
+import { analyticsRoutes } from '../modules/analytics/analytics.routes';
+import { authRoutes } from '../modules/auth/auth.routes';
+import { notificationsRoutes } from '../modules/notifications/notifications.routes';
+import { parkingLotsRoutes } from '../modules/parking-lots/parking-lots.routes';
+import { parkingSessionsRoutes } from '../modules/parking-sessions/parking-sessions.routes';
+import { passesRoutes } from '../modules/passes/passes.routes';
+import { paymentsRoutes } from '../modules/payments/payments.routes';
+import { reportsRoutes } from '../modules/reports/reports.routes';
+import { shiftsRoutes } from '../modules/shifts/shifts.routes';
+import { slotsRoutes } from '../modules/slots/slots.routes';
+import { staffRoutes } from '../modules/staff/staff.routes';
+import { usersRoutes } from '../modules/users/users.routes';
+import { vehiclesRoutes } from '../modules/vehicles/vehicles.routes';
+
+export const apiV1 = Router();
+
+apiV1.use('/auth', authRoutes);
+apiV1.use('/users', usersRoutes);
+apiV1.use('/parking-lots', parkingLotsRoutes);
+apiV1.use('/parking-sessions', parkingSessionsRoutes);
+apiV1.use('/vehicles', vehiclesRoutes);
+apiV1.use('/slots', slotsRoutes);
+apiV1.use('/payments', paymentsRoutes);
+apiV1.use('/passes', passesRoutes);
+apiV1.use('/staff', staffRoutes);
+apiV1.use('/shifts', shiftsRoutes);
+apiV1.use('/reports', reportsRoutes);
+apiV1.use('/analytics', analyticsRoutes);
+apiV1.use('/notifications', notificationsRoutes);
+apiV1.use('/activity', activityRoutes);
