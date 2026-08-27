@@ -25,6 +25,7 @@ const pricingRule = z
       .min(1)
       .optional(),
     overflowHourlyRate: z.number().min(0).optional(),
+    dailyRate: z.number().min(0).optional(),
     dailyMax: z.number().min(0).optional(),
   })
   .superRefine((rule, ctx) => {
@@ -35,14 +36,18 @@ const pricingRule = z
         message: 'Flat pricing requires a flat rate',
       });
     }
-    if (
-      rule.mode === 'HOURLY' &&
-      (rule.firstHourRate === undefined || rule.additionalHourRate === undefined)
-    ) {
+    if (rule.mode === 'HOURLY' && rule.firstHourRate === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['firstHourRate'],
-        message: 'Hourly pricing requires first-hour and additional-hour rates',
+        message: 'Hourly pricing requires a first-hour rate',
+      });
+    }
+    if (rule.mode === 'DAILY' && rule.dailyRate === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dailyRate'],
+        message: 'Per-day pricing requires a daily rate',
       });
     }
     if (rule.mode === 'SLAB') {

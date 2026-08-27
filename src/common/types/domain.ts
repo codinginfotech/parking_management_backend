@@ -10,7 +10,10 @@ export interface PricingRule {
   mode: PricingMode;
   flatRate?: number;
   firstHourRate?: number;
+  /** Falls back to firstHourRate when unset. */
   additionalHourRate?: number;
+  /** Charged per started 24h day (DAILY mode). */
+  dailyRate?: number;
   slabs?: PricingSlab[];
   /** Charged per extra hour beyond the last slab. */
   overflowHourlyRate?: number;

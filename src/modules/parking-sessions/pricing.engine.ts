@@ -21,7 +21,13 @@ export function calculateParkingAmount(
     }
     case 'HOURLY': {
       const hours = Math.max(1, Math.ceil(minutes / 60));
-      amount = (rule.firstHourRate ?? 0) + (hours - 1) * (rule.additionalHourRate ?? 0);
+      const nextHourRate = rule.additionalHourRate ?? rule.firstHourRate ?? 0;
+      amount = (rule.firstHourRate ?? 0) + (hours - 1) * nextHourRate;
+      break;
+    }
+    case 'DAILY': {
+      const days = Math.max(1, Math.ceil(minutes / DAY_MINUTES));
+      amount = days * (rule.dailyRate ?? 0);
       break;
     }
     case 'SLAB': {

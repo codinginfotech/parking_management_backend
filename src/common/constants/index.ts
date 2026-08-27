@@ -13,7 +13,7 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const SESSION_STATUSES = ['ACTIVE', 'COMPLETED', 'CANCELLED'] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
-export const PRICING_MODES = ['FLAT', 'HOURLY', 'SLAB'] as const;
+export const PRICING_MODES = ['FLAT', 'HOURLY', 'SLAB', 'DAILY'] as const;
 export type PricingMode = (typeof PRICING_MODES)[number];
 
 export const SLOT_STATUSES = ['AVAILABLE', 'OCCUPIED', 'BLOCKED'] as const;
